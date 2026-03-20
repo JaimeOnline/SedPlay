@@ -1,17 +1,19 @@
 import { useState } from "react";
 
-const SEGMENTS = [
+// segmentos por defecto (sin "Posición"; se agrega desde GameScreen según categoría)
+const DEFAULT_SEGMENTS = [
     { id: "drink", label: "Tomar trago" },
     { id: "truth", label: "Verdad" },
     { id: "dare", label: "Reto" },
     { id: "card", label: "Carta al azar" },
-    { id: "change_player", label: "Cambio de jugador" },
-    { id: "skip_turn", label: "Salta turno" },
 ];
 
-function Wheel({ onResult, disabled }) {
+function Wheel({ onResult, disabled, segments }) {
     const [isSpinning, setIsSpinning] = useState(false);
     const [rotation, setRotation] = useState(0);
+
+    // si no se pasan segmentos desde fuera, usamos los por defecto
+    const segs = segments && segments.length ? segments : DEFAULT_SEGMENTS;
 
     const handleSpin = () => {
         if (isSpinning || disabled) return;
@@ -24,10 +26,10 @@ function Wheel({ onResult, disabled }) {
 
         setRotation(newRotation);
 
-        const segmentAngle = 360 / SEGMENTS.length;
+        const segmentAngle = 360 / segs.length;
         const normalized = (newRotation % 360 + 360) % 360;
-        const index = Math.floor((SEGMENTS.length - normalized / segmentAngle) % SEGMENTS.length);
-        const segment = SEGMENTS[index];
+        const index = Math.floor((segs.length - normalized / segmentAngle) % segs.length);
+        const segment = segs[index];
 
         setTimeout(() => {
             setIsSpinning(false);
@@ -43,12 +45,12 @@ function Wheel({ onResult, disabled }) {
                     className={`wheel__disc ${isSpinning ? "wheel__disc--spinning" : ""}`}
                     style={{ transform: `rotate(${rotation}deg)` }}
                 >
-                    {SEGMENTS.map((seg, idx) => (
+                    {segs.map((seg, idx) => (
                         <div
                             key={seg.id}
                             className="wheel__segment"
                             style={{
-                                transform: `rotate(${(360 / SEGMENTS.length) * idx}deg)`,
+                                transform: `rotate(${(360 / segs.length) * idx}deg)`,
                             }}
                         >
                             <span>{seg.label}</span>
@@ -70,3 +72,4 @@ function Wheel({ onResult, disabled }) {
 }
 
 export default Wheel;
+

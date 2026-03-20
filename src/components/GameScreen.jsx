@@ -55,33 +55,12 @@ function formatRemaining(ms) {
         .padStart(2, "0")}`;
 }
 
-// Helpers de intensidad dinámica solo aplican cuando game.intensity === "todos"
-function canIncreaseIntensity(gameIntensity, currentIntensity) {
-    if (gameIntensity !== "todos") return false;
-    return currentIntensity === "suave" || currentIntensity === "medio";
-}
-
-function getNextIntensity(currentIntensity) {
-    if (currentIntensity === "suave") return "medio";
-    if (currentIntensity === "medio") return "alto";
-    return "alto";
-}
-
-function getPrevIntensity(currentIntensity) {
-    if (currentIntensity === "alto") return "medio";
-    if (currentIntensity === "medio") return "suave";
-    return "suave";
-}
-
 
 function GameScreen({ game, onExit, onEditConfig }) {
     const [currentPlayerIndex, setCurrentPlayerIndex] = useState(
         game.currentPlayerIndex || 0
     );
     const [remainingMs, setRemainingMs] = useState(null);
-    const [currentIntensity, setCurrentIntensity] = useState(
-        game.intensity === "todos" ? "suave" : game.intensity
-    );
     const categoryPriority = ["rompehielos", "romantico", "picante", "extremo", "locuras"];
 
     // Lista ordenada de categorías permitidas en esta partida
@@ -124,10 +103,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
         // Si no hay duración -> sin límite, no hay temporizador
         if (!game.duration) {
             setRemainingMs(null);
-            // cuando no hay duración, usamos intensidad fija o "suave" si es "todos"
-            setCurrentIntensity(
-                game.intensity === "todos" ? "suave" : game.intensity
-            );
             return;
         }
 
@@ -143,20 +118,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const elapsed = Date.now() - startTimeRef.current;
             const left = totalMs - elapsed;
 
-            // progresión automática de intensidad solo si la config es "todos"
-            if (game.intensity === "todos") {
-                const ratio = Math.min(1, Math.max(0, elapsed / totalMs));
-                if (ratio < 0.33) {
-                    setCurrentIntensity("suave");
-                } else if (ratio < 0.66) {
-                    setCurrentIntensity("medio");
-                } else {
-                    setCurrentIntensity("alto");
-                }
-            } else {
-                setCurrentIntensity(game.intensity);
-            }
-
             if (left <= 0) {
                 setRemainingMs(0);
                 setIsFinished(true);
@@ -171,41 +132,23 @@ function GameScreen({ game, onExit, onEditConfig }) {
         const interval = setInterval(tick, 1000);
 
         return () => clearInterval(interval);
-    }, [game.duration, game.intensity]);
+    }, [game.duration]);
 
     const players = game.players || [];
     const currentPlayer = players[currentPlayerIndex] || "Jugador";
 
-    const handleNextPlayer = () => {
+    // Núcleo para avanzar turno (no borra el resultado, solo cambia jugador y cuenta)
+    const advanceTurnCore = () => {
         if (!players.length) return;
 
-        // avanzar jugador y limpiar estado de resultado
         setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
-        setLastResult(null);
-        setLastItem(null);
-        setCurrentTruthOrDare(null);
-        setIsCardModeActive(false);
 
-        // calcular nuevo número de turno
         const nextTurn = turnCount + 1;
         setTurnCount(nextTurn);
 
         // solo cada 4 rondas
         if (nextTurn % 4 === 0) {
-            // 1) Preguntar por INTENSIDAD (solo si la config es "todos")
-            if (game.intensity === "todos") {
-                const canIncInt = canIncreaseIntensity(game.intensity, currentIntensity);
-                if (canIncInt) {
-                    const wantsMoreIntensity = window.confirm(
-                        "¿Quieren subir un poco el nivel de INTENSIDAD?"
-                    );
-                    if (wantsMoreIntensity) {
-                        setCurrentIntensity(getNextIntensity(currentIntensity));
-                    }
-                }
-            }
-
-            // 2) Preguntar por CATEGORÍAS (solo si hay más de una posible)
+            // Preguntar por CATEGORÍAS (solo si hay más de una posible)
             const availableCats = game.activeCategories || [];
             if (availableCats.length > 1) {
                 const maxIndex = orderedCategories.length - 1;
@@ -219,6 +162,20 @@ function GameScreen({ game, onExit, onEditConfig }) {
                 }
             }
         }
+    };
+
+    // Avanzar turno desde la ruleta: no limpiamos el resultado
+    const advanceTurn = () => {
+        advanceTurnCore();
+    };
+
+    // En modos sin ruleta, si usáramos "siguiente jugador", sí podríamos limpiar aquí
+    const handleNextPlayer = () => {
+        setLastResult(null);
+        setLastItem(null);
+        setCurrentTruthOrDare(null);
+        setIsCardModeActive(false);
+        advanceTurnCore();
     };
 
     const handleWheelResult = (segment) => {
@@ -243,7 +200,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const item = getRandomItem({
                 type,
                 categories: categoriesForPick,
-                intensity: currentIntensity,
             });
 
             setLastItem(item);
@@ -252,14 +208,35 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const card = getRandomItem({
                 type: "card",
                 categories: categoriesForPick,
-                intensity: currentIntensity,
             });
 
             setLastItem(card);
         }
+
+        // Al terminar el giro, pasamos al siguiente jugador y contamos ronda
+        advanceTurn();
     };
 
-    const isWheelMode = game.mode === "ruleta" || game.mode === "mixto";
+
+    const isWheelMode = game.mode === "ruleta";
+
+    // Segments base de la ruleta
+    const baseSegments = [
+        { id: "drink", label: "Tomar trago" },
+        { id: "truth", label: "Verdad" },
+        { id: "dare", label: "Reto" },
+        { id: "card", label: "Carta al azar" },
+    ];
+
+    // Solo añadimos "Posición" a partir de Picante
+    const shouldShowPosition =
+        currentCategory === "picante" ||
+        currentCategory === "extremo" ||
+        currentCategory === "locuras";
+
+    const wheelSegments = shouldShowPosition
+        ? [...baseSegments, { id: "position", label: "Posición" }]
+        : baseSegments;
 
     const handleChangeItem = () => {
         if (!lastResult && !currentTruthOrDare && !isCardModeActive) return;
@@ -277,7 +254,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const item = getRandomItem({
                 type: typeFromWheel,
                 categories: categoriesForPick,
-                intensity: currentIntensity,
             });
 
             setLastItem(item);
@@ -289,7 +265,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const item = getRandomItem({
                 type: currentTruthOrDare,
                 categories: categoriesForPick,
-                intensity: currentIntensity,
             });
 
             setLastItem(item);
@@ -301,7 +276,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
             const item = getRandomItem({
                 type: "card",
                 categories: categoriesForPick,
-                intensity: currentIntensity,
             });
 
             setLastItem(item);
@@ -319,7 +293,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
         const item = getRandomItem({
             type,
             categories: categoriesForPick,
-            intensity: currentIntensity,
         });
 
         setLastItem(item);
@@ -336,7 +309,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
         const item = getRandomItem({
             type: "card",
             categories: categoriesForPick,
-            intensity: currentIntensity,
         });
 
         setLastItem(item);
@@ -412,10 +384,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
                         <h2 className="game__player">{currentPlayer}</h2>
 
                         <div className="game__info-row">
-                            <span className="game__chip">
-                                Intensidad: {formatIntensity(currentIntensity)}
-                            </span>
-
                             {game.duration ? (
                                 <span className="game__chip">
                                     Tiempo: {formatRemaining(remainingMs)}
@@ -440,36 +408,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
                     </section>
 
                     <section className="game__control">
-                        {game.intensity === "todos" && (
-                            <div className="game__chips">
-                                <span className="game__chip game__chip--ghost">
-                                    Intensidad actual: {formatIntensity(currentIntensity)}
-                                </span>
-                                <button
-                                    type="button"
-                                    className="game__btn-secondary"
-                                    onClick={() =>
-                                        setCurrentIntensity(getPrevIntensity(currentIntensity))
-                                    }
-                                >
-                                    Bajar intensidad
-                                </button>
-                                {canIncreaseIntensity(game.intensity, currentIntensity) && (
-                                    <button
-                                        type="button"
-                                        className="game__btn-secondary"
-                                        onClick={() =>
-                                            setCurrentIntensity(
-                                                getNextIntensity(currentIntensity)
-                                            )
-                                        }
-                                    >
-                                        Subir intensidad
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
                         {orderedCategories.length > 1 && currentCategory && (
                             <div className="game__chips" style={{ flexWrap: "wrap", gap: "0.4rem" }}>
                                 <span className="game__chip game__chip--ghost">
@@ -497,7 +435,7 @@ function GameScreen({ game, onExit, onEditConfig }) {
                     <section className="game__body">
                         {isWheelMode ? (
                             <>
-                                <Wheel onResult={handleWheelResult} />
+                                <Wheel onResult={handleWheelResult} segments={wheelSegments} />
                                 <div className="game__result">
                                     {lastResult ? (
                                         <>
@@ -524,11 +462,14 @@ function GameScreen({ game, onExit, onEditConfig }) {
                                                         ? lastItem.text
                                                         : `${lastResult.player}, roba una carta al azar (no hay cartas disponibles con esta configuración).`)}
 
-                                                {lastResult.segment.id === "change_player" &&
-                                                    `Cambio de jugador: pasa el turno a la siguiente persona.`}
 
-                                                {lastResult.segment.id === "skip_turn" &&
-                                                    `Salta turno: el siguiente jugador pierde su turno.`}
+                                                {lastResult.segment.id === "position" && (
+                                                    currentCategory === "picante"
+                                                        ? `Elijan una posición sexual. Pueden practicar con ropa o sin penetración.`
+                                                        : currentCategory === "extremo" || currentCategory === "locuras"
+                                                            ? `Elijan una posición sexual sin ropa y con penetración.`
+                                                            : `Elijan una posición sexual juntos.`
+                                                )}
                                             </p>
                                         </>
                                     ) : (
@@ -634,13 +575,6 @@ function GameScreen({ game, onExit, onEditConfig }) {
                         Terminar partida
                     </button>
 
-                    <button
-                        className="game__btn-secondary game__btn-secondary--right"
-                        type="button"
-                        onClick={handleNextPlayer}
-                    >
-                        Siguiente jugador
-                    </button>
                 </footer>
             </div>
 

@@ -3,8 +3,10 @@
     --bg-card: #141326;
     --primary: #e2a4ff;
     --accent: #f5c15f;
-    --text: #f8f5ff;
-    --muted: #a49bbd;
+    --text: #ffffff;
+    /* texto principal más brillante */
+    --muted: #c0b8d5;
+    /* gris algo más claro */
     --danger: #ff4b7d;
     --radius: 16px;
 }
@@ -21,6 +23,8 @@ body {
         sans-serif;
     background: radial-gradient(circle at top, #28103f 0, #070612 55%);
     color: var(--text);
+    font-size: 16px;
+    /* tamaño base cómodo para móvil */
 }
 
 #root {
@@ -117,7 +121,7 @@ body {
 
 .home__subtitle {
     margin-top: 0.5rem;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--muted);
 }
 
@@ -197,7 +201,7 @@ body {
 
 .setup__hint {
     margin: 0 0 0.75rem;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--muted);
 }
 
@@ -364,7 +368,7 @@ body {
 
 .game__label {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -372,7 +376,7 @@ body {
 
 .game__player {
     margin: 0.25rem 0 0.75rem;
-    font-size: 1.4rem;
+    font-size: 1.6rem;
 }
 
 .game__info-row {
@@ -389,16 +393,16 @@ body {
 }
 
 .game__chip {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: rgba(245, 193, 95, 0.1);
+    background: rgba(245, 193, 95, 0.12);
     color: var(--accent);
 }
 
 .game__chip--ghost {
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--muted);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
 }
 
 .game__categories {
@@ -535,8 +539,9 @@ body {
 
 .game__result-text {
     margin: 0;
-    font-size: 0.9rem;
-    color: var(--muted);
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.5;
 }
 
 .game__footer {
@@ -674,7 +679,7 @@ body {
 
 .cm__item-text {
     margin: 0.1rem 0 0.5rem;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
 }
 
 .cm__item-actions {
