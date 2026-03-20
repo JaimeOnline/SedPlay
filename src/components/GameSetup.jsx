@@ -1,18 +1,11 @@
 import { useState } from "react";
 
 const MODOS = [
+    { value: "cartas", label: "Cartas" },
     { value: "ruleta", label: "Ruleta" },
     { value: "verdad_reto", label: "Verdad o Reto" },
-    { value: "cartas", label: "Cartas" },
-    { value: "mixto", label: "Mixto" },
 ];
 
-const INTENSIDADES = [
-    { value: "suave", label: "Suave" },
-    { value: "medio", label: "Medio" },
-    { value: "alto", label: "Alto" },
-    { value: "todos", label: "Todos los niveles" },
-];
 
 const CATEGORIAS = [
     { value: "rompehielos", label: "Rompehielos" },
@@ -34,10 +27,7 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
             ? initialConfig.players
             : ["Jugador 1", "Jugador 2"]
     );
-    const [mode, setMode] = useState(initialConfig?.mode || "ruleta");
-    const [intensity, setIntensity] = useState(
-        initialConfig?.intensity || "suave"
-    );
+    const [mode, setMode] = useState(initialConfig?.mode || "cartas");
     const [activeCategories, setActiveCategories] = useState(
         initialConfig?.activeCategories && initialConfig.activeCategories.length
             ? initialConfig.activeCategories
@@ -131,7 +121,6 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
             players: trimmedPlayers,
             // si editamos, mantenemos índice de jugador actual; si no, empezamos en 0
             currentPlayerIndex: initialConfig?.currentPlayerIndex || 0,
-            intensity,
             activeCategories,
             duration: finalDuration, // número o null
             // si editamos una partida en curso, podemos mantener el startTime
@@ -237,31 +226,6 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
                     )}
                 </section>
 
-                {/* Intensidad */}
-                <section className="setup__section">
-                    <h3>Intensidad</h3>
-                    <p className="setup__hint">
-                        Elige qué tan suave o picante será el contenido.
-                    </p>
-                    <div className="setup__options setup__options--grid">
-                        {INTENSIDADES.map((i) => (
-                            <label
-                                key={i.value}
-                                className={`pill ${intensity === i.value ? "pill--active" : ""
-                                    }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="intensity"
-                                    value={i.value}
-                                    checked={intensity === i.value}
-                                    onChange={(e) => setIntensity(e.target.value)}
-                                />
-                                {i.label}
-                            </label>
-                        ))}
-                    </div>
-                </section>
 
                 {/* Categorías */}
                 <section className="setup__section">

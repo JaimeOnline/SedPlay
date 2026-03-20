@@ -5,21 +5,18 @@ import { loadCustomItems } from "./storage";
  * Devuelve una lista de items filtrados por:
  * - type: "truth" | "dare" | "card"
  * - categories: array de categorías activas
- * - intensity: "suave" | "medio" | "alto" | "todos"
+ *
+ * La intensidad se ignora: el “nivel” se controla solo por categoría
+ * (rompehielos/romántico = suave, picante = medio, extremo/locuras = alto).
  */
-export function getFilteredItems({ type, categories, intensity }) {
+export function getFilteredItems({ type, categories }) {
     const customItems = loadCustomItems();
     let items = [...defaultItems, ...customItems].filter(
         (item) => item.type === type
     );
 
-
     if (Array.isArray(categories) && categories.length > 0) {
         items = items.filter((item) => categories.includes(item.category));
-    }
-
-    if (intensity !== "todos") {
-        items = items.filter((item) => item.intensity === intensity);
     }
 
     return items;
