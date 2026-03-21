@@ -2,8 +2,10 @@ import { useState } from "react";
 
 const MODOS = [
     { value: "cartas", label: "Cartas" },
+    { value: "position", label: "Posiciones" },
     { value: "ruleta", label: "Ruleta" },
     { value: "verdad_reto", label: "Verdad o Reto" },
+
 ];
 
 
@@ -22,17 +24,152 @@ const DURACIONES = [
 ];
 
 function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
+    const DEFAULT_POSITION_FILTERS = {
+        Todas_Las_Posiciones: [],
+        tipo_de_posicion_sexual: [],
+        Estimulacion: [],
+        Penetracion: [],
+        Acariciamiento_extra: [],
+        Ubicacion: [],
+        Actividad: [],
+        Complejidad: [],
+    };
+
     const [players, setPlayers] = useState(
         initialConfig?.players && initialConfig.players.length
             ? initialConfig.players
             : ["Jugador 1", "Jugador 2"]
     );
     const [mode, setMode] = useState(initialConfig?.mode || "cartas");
+    const [positionFilters, setPositionFilters] = useState(
+        initialConfig?.positionFilters || DEFAULT_POSITION_FILTERS
+    );
+    const [openPositionSections, setOpenPositionSections] = useState({
+        Todas_Las_Posiciones: false,
+        tipo_de_posicion_sexual: false,
+        Estimulacion: false,
+        Penetracion: false,
+        Acariciamiento_extra: false,
+        Ubicacion: false,
+        Actividad: false,
+        Complejidad: false,
+    });
+
     const [activeCategories, setActiveCategories] = useState(
         initialConfig?.activeCategories && initialConfig.activeCategories.length
             ? initialConfig.activeCategories
             : CATEGORIAS.map((c) => c.value)
     );
+
+    const formatPositionLabel = (value) =>
+        value
+            .replace(/_/g, " ")
+            .split(" ")
+            .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
+            .join(" ");
+
+    const POSITION_OPTIONS = {
+        Todas_Las_Posiciones: [
+            "Todas_Las_Posiciones",
+        ],
+        tipo_de_posicion_sexual: [
+            "acostados",
+            "angulo_recto",
+            "anilingus",
+            "cara_a_cara",
+            "cruzar",
+            "cunnilingus",
+            "de_lado",
+            "de_perrito",
+            "de_cucharita",
+            "de_espalda",
+            "de_pie",
+            "de_rodillas",
+            "hombre_arriba",
+            "invertidas",
+            "mamada",
+            "mujer_arriba",
+            "por_Detras",
+            "posición_sexual_69",
+            "sentados",
+            "sexo_anal",
+            "sexo_oral",
+            "vaquera",
+        ],
+        Estimulacion: [
+            "estimulacion_uniforme",
+            "estimular_el_clitoris",
+            "estimular_el_punto_A",
+            "estimular_el_punto_G",
+            "estimular_el_punto_P",
+        ],
+        Penetracion: [
+            "no_penetracion",
+            "penetracion_media",
+            "penetracion_poco_profunda",
+            "penetracion_profunda",
+        ],
+        Acariciamiento_extra: [
+            "abrazos",
+            "besar",
+            "besar el pecho",
+            "digitacion_del_ano",
+            "estimular_el_clitoris_con_la_mano",
+            "tocar_las_nalgas",
+            "tocar_los_pechos",
+        ],
+        Ubicacion: [
+            "cama",
+            "mesa",
+            "pelota_de_fitness",
+            "silla",
+            "sillon",
+            "sofa",
+        ],
+        Actividad: [
+            "hombre_lleva_el_ritmo",
+            "mujer_lleva_el_ritmo",
+        ],
+        Complejidad: [
+            "nivel_difícil",
+            "nivel_medio",
+            "nivel_sencillas",
+        ],
+    };
+
+    const togglePositionSection = (classification) => {
+        setOpenPositionSections((prev) => ({
+            ...prev,
+            [classification]: !prev[classification],
+        }));
+    };
+
+    const toggleAllPositionFilters = (classification) => {
+        setPositionFilters((prev) => {
+            const allValues = POSITION_OPTIONS[classification] || [];
+            const current = prev[classification] || [];
+            const allSelected = allValues.length > 0 && current.length === allValues.length;
+
+            return {
+                ...prev,
+                [classification]: allSelected ? [] : [...allValues],
+            };
+        });
+    };
+
+    const togglePositionFilter = (classification, subcategory) => {
+        setPositionFilters((prev) => {
+            const current = prev[classification] || [];
+            const exists = current.includes(subcategory);
+            const next = exists
+                ? current.filter((s) => s !== subcategory)
+                : [...current, subcategory];
+            return {
+                ...prev,
+                [classification]: next,
+            };
+        });
+    };
 
     // duración inicial
     let initialDurationType = "none";
@@ -55,7 +192,7 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
     const [durationPreset, setDurationPreset] = useState(initialPreset);
     const [durationCustom, setDurationCustom] = useState(initialCustom);
 
-    const minPlayers = 1;
+    const minPlayers = 2;
     const maxPlayers = 10;
 
     const handlePlayerNameChange = (index, value) => {
@@ -90,12 +227,17 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
             .map((p) => p.trim())
             .filter((p) => p.length > 0);
 
-        if (trimmedPlayers.length < 1) {
-            alert("Debes tener al menos un jugador.");
+        if (trimmedPlayers.length < 2) {
+            alert("Debes tener al menos 2 jugadores.");
             return;
         }
 
-        if (activeCategories.length === 0 && mode !== "cartas" && mode !== "ruleta") {
+        if (
+            activeCategories.length === 0 &&
+            mode !== "cartas" &&
+            mode !== "ruleta" &&
+            mode !== "position"
+        ) {
             alert("Selecciona al menos una categoría.");
             return;
         }
@@ -114,6 +256,8 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
             finalDuration = null; // sin límite
         }
 
+        console.log("positionFilters al guardar:", positionFilters);
+
         const gameConfig = {
             // si viene de partida existente, mantenemos el mismo id
             id: initialConfig?.id || Date.now().toString(),
@@ -125,6 +269,8 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
             duration: finalDuration, // número o null
             // si editamos una partida en curso, podemos mantener el startTime
             startTime: initialConfig?.startTime || null,
+            // filtros de posiciones (para modo Posición y ruleta)
+            positionFilters,
         };
 
 
@@ -186,7 +332,7 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
                 <section className="setup__section">
                     <h3>Jugadores ({players.length})</h3>
                     <p className="setup__hint">
-                        Mínimo {minPlayers}, máximo {maxPlayers}. Puedes jugar solo, en
+                        Mínimo {minPlayers}, máximo {maxPlayers}. Puedes jugar en
                         pareja o en grupo.
                     </p>
 
@@ -252,7 +398,483 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
                     </div>
                 </section>
 
-                {/* Duración */}
+                {/* Filtros para posiciones (modo Posición y ruleta -> Posición) */}
+                <section className="setup__section">
+                    <h3>Filtros de posiciones</h3>
+                    <p className="setup__hint">
+                        Estos filtros se usan en el modo "Posiciones" y cuando la ruleta
+                        caiga en "Posición". Si no marcas nada, se usarán todas las
+                        imágenes disponibles.
+                    </p>
+
+                    <div className="setup__options setup__options--grid">
+                        {/* Todas las posiciones */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Todas_Las_Posiciones")}
+                                >
+                                    {openPositionSections.Todas_Las_Posiciones ? "▾" : "▸"}{" "}
+                                    Todas las posiciones
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Todas_Las_Posiciones.length ===
+                                        POSITION_OPTIONS.Todas_Las_Posiciones.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Todas_Las_Posiciones")
+                                    }
+                                >
+                                    {positionFilters.Todas_Las_Posiciones.length ===
+                                        POSITION_OPTIONS.Todas_Las_Posiciones.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Todas_Las_Posiciones && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Todas_Las_Posiciones.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Todas_Las_Posiciones.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Todas_Las_Posiciones.includes(
+                                                    sub
+                                                )}
+                                                onChange={() =>
+                                                    togglePositionFilter(
+                                                        "Todas_Las_Posiciones",
+                                                        sub
+                                                    )
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Tipo de posición sexual */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() =>
+                                        togglePositionSection("tipo_de_posicion_sexual")
+                                    }
+                                >
+                                    {openPositionSections.tipo_de_posicion_sexual
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Tipo de posición sexual
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.tipo_de_posicion_sexual.length ===
+                                        POSITION_OPTIONS.tipo_de_posicion_sexual.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("tipo_de_posicion_sexual")
+                                    }
+                                >
+                                    {positionFilters.tipo_de_posicion_sexual.length ===
+                                        POSITION_OPTIONS.tipo_de_posicion_sexual.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.tipo_de_posicion_sexual && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.tipo_de_posicion_sexual.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.tipo_de_posicion_sexual.includes(
+                                                sub
+                                            )
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.tipo_de_posicion_sexual.includes(
+                                                    sub
+                                                )}
+                                                onChange={() =>
+                                                    togglePositionFilter(
+                                                        "tipo_de_posicion_sexual",
+                                                        sub
+                                                    )
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+
+                        {/* Estimulación */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Estimulacion")}
+                                >
+                                    {openPositionSections.Estimulacion
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Estimulación
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Estimulacion.length ===
+                                        POSITION_OPTIONS.Estimulacion.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Estimulacion")
+                                    }
+                                >
+                                    {positionFilters.Estimulacion.length ===
+                                        POSITION_OPTIONS.Estimulacion.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Estimulacion && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Estimulacion.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Estimulacion.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Estimulacion.includes(
+                                                    sub
+                                                )}
+                                                onChange={() =>
+                                                    togglePositionFilter("Estimulacion", sub)
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Acariciamiento extra */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() =>
+                                        togglePositionSection("Acariciamiento_extra")
+                                    }
+                                >
+                                    {openPositionSections.Acariciamiento_extra
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Acariciamiento extra
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Acariciamiento_extra.length ===
+                                        POSITION_OPTIONS.Acariciamiento_extra.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Acariciamiento_extra")
+                                    }
+                                >
+                                    {positionFilters.Acariciamiento_extra.length ===
+                                        POSITION_OPTIONS.Acariciamiento_extra.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Acariciamiento_extra && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Acariciamiento_extra.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Acariciamiento_extra.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Acariciamiento_extra.includes(
+                                                    sub
+                                                )}
+                                                onChange={() =>
+                                                    togglePositionFilter(
+                                                        "Acariciamiento_extra",
+                                                        sub
+                                                    )
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Penetración */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Penetracion")}
+                                >
+                                    {openPositionSections.Penetracion
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Penetración
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Penetracion.length ===
+                                        POSITION_OPTIONS.Penetracion.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Penetracion")
+                                    }
+                                >
+                                    {positionFilters.Penetracion.length ===
+                                        POSITION_OPTIONS.Penetracion.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Penetracion && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Penetracion.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Penetracion.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Penetracion.includes(
+                                                    sub
+                                                )}
+                                                onChange={() =>
+                                                    togglePositionFilter("Penetracion", sub)
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Ubicación */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Ubicacion")}
+                                >
+                                    {openPositionSections.Ubicacion
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Ubicación
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Ubicacion.length ===
+                                        POSITION_OPTIONS.Ubicacion.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Ubicacion")
+                                    }
+                                >
+                                    {positionFilters.Ubicacion.length ===
+                                        POSITION_OPTIONS.Ubicacion.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Ubicacion && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Ubicacion.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Ubicacion.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Ubicacion.includes(sub)}
+                                                onChange={() =>
+                                                    togglePositionFilter("Ubicacion", sub)
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Actividad */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Actividad")}
+                                >
+                                    {openPositionSections.Actividad
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Actividad
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Actividad.length ===
+                                        POSITION_OPTIONS.Actividad.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Actividad")
+                                    }
+                                >
+                                    {positionFilters.Actividad.length ===
+                                        POSITION_OPTIONS.Actividad.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Actividad && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Actividad.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Actividad.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Actividad.includes(sub)}
+                                                onChange={() =>
+                                                    togglePositionFilter("Actividad", sub)
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Complejidad */}
+                        <div>
+                            <div className="setup__position-header">
+                                <button
+                                    type="button"
+                                    className="setup__position-toggle"
+                                    onClick={() => togglePositionSection("Complejidad")}
+                                >
+                                    {openPositionSections.Complejidad
+                                        ? "▾"
+                                        : "▸"}{" "}
+                                    Complejidad
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`setup__position-all ${positionFilters.Complejidad.length ===
+                                        POSITION_OPTIONS.Complejidad.length
+                                        ? "setup__position-all--active"
+                                        : ""
+                                        }`}
+                                    onClick={() =>
+                                        toggleAllPositionFilters("Complejidad")
+                                    }
+                                >
+                                    {positionFilters.Complejidad.length ===
+                                        POSITION_OPTIONS.Complejidad.length
+                                        ? "Deseleccionar todo"
+                                        : "Seleccionar todo"}
+                                </button>
+                            </div>
+
+                            {openPositionSections.Complejidad && (
+                                <div className="setup__options setup__options--grid">
+                                    {POSITION_OPTIONS.Complejidad.map((sub) => (
+                                        <label
+                                            key={sub}
+                                            className={`pill ${positionFilters.Complejidad.includes(sub)
+                                                ? "pill--active"
+                                                : ""
+                                                }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={positionFilters.Complejidad.includes(sub)}
+                                                onChange={() =>
+                                                    togglePositionFilter("Complejidad", sub)
+                                                }
+                                            />
+                                            {formatPositionLabel(sub)}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+
+                {/* Duración de la partida */}
                 <section className="setup__section">
                     <h3>Duración de la partida</h3>
                     <p className="setup__hint">
@@ -344,12 +966,11 @@ function GameSetup({ onBack, onStart, initialConfig, onExitToMenu }) {
                     )}
                 </section>
 
-
                 <button type="submit" className="setup__submit">
                     Iniciar juego
                 </button>
             </form>
-        </div>
+        </div >
     );
 }
 
