@@ -596,24 +596,6 @@ body {
     gap: 0.5rem;
 }
 
-.cm__stats {
-    list-style: none;
-    padding-left: 0;
-    margin: 0.25rem 0 0;
-    font-size: 0.9rem;
-    color: var(--muted);
-}
-
-.cm__stats li+li {
-    margin-top: 0.25rem;
-}
-
-.cm__actions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
 .cm__filters {
     display: flex;
     flex-wrap: wrap;
@@ -843,4 +825,203 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+}
+
+.game__position-image {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.game__position-image img {
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 12px;
+    object-fit: contain;
+}
+
+/* Botones de filtros de posiciones en GameSetup */
+
+.setup__position-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.35rem 0 0.35rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.setup__position-toggle,
+.setup__position-all {
+    border: none;
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.setup__position-toggle {
+    flex: 1;
+    justify-content: flex-start;
+    font-weight: 500;
+}
+
+.setup__position-all {
+    white-space: nowrap;
+    border-radius: 999px;
+    padding-inline: 0.6rem;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.setup__position-toggle:hover,
+.setup__position-all:hover {
+    background: rgba(226, 164, 255, 0.15);
+    color: var(--primary);
+}
+
+/* cada grupo de filtros de posiciones dentro de la sección */
+.setup__section .setup__options>div {
+    margin-bottom: 0.4rem;
+}
+
+/* botón "Seleccionar todo" activo en filtros de posiciones */
+.setup__position-all--active {
+    background: linear-gradient(135deg, #f5c15f, #e664ff);
+    color: #130f20;
+    font-weight: 600;
+}
+
+.game__gallery-thumbs {
+    margin-top: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    justify-content: center;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.game__gallery-thumb {
+    border: none;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 60px;
+    height: 60px;
+}
+
+.game__gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.game__gallery-thumb--active {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Ajustes específicos para pantallas pequeñas */
+@media (max-width: 600px) {
+    body {
+        font-size: 15px;
+    }
+
+    .home,
+    .setup,
+    .game {
+        margin: 0.75rem;
+        padding: 1.2rem 0.9rem 2.2rem;
+        max-width: 100%;
+        border-radius: 14px;
+    }
+
+    .game__player {
+        font-size: 1.4rem;
+    }
+
+    .game__btn-secondary,
+    .setup__submit,
+    .home__buttons button,
+    .wheel__btn {
+        padding: 0.7rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .pill {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+    }
+
+    .game__position-image img {
+        max-height: 55vh;
+    }
+
+    .game__footer {
+        justify-content: center;
+    }
+
+    .game__gallery-thumbs {
+        max-height: 200px;
+        gap: 0.25rem;
+    }
+
+    .game__gallery-thumb {
+        width: 64px;
+        height: 64px;
+    }
+
+    .game__vrd-buttons {
+        gap: 0.4rem;
+    }
+
+    .game__vrd-buttons .game__btn-secondary {
+        flex: 1 1 auto;
+        min-width: 80px;
+        text-align: center;
+    }
+}
+
+.game__gallery-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(7, 6, 18, 0.96);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.game__gallery-fullscreen .game__result-text {
+    text-align: center;
+}
+
+.game__gallery-fullscreen .game__position-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.game__gallery-fullscreen .game__position-image img {
+    max-height: 80vh;
+}
+
+.game__gallery-fullscreen .game__gallery-thumbs {
+    max-height: 120px;
+}
+
+.game__gallery-fullscreen .game__vrd-buttons {
+    margin-top: 0.5rem;
 }

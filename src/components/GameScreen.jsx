@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Wheel from "./Wheel";
 import { getRandomItem } from "../utils/gameLogic";
 import AdBanner from "./AdBanner";
-
+import { getRandomPosition } from "../utils/positionLogic";
 
 function formatMode(mode) {
     switch (mode) {
@@ -45,6 +45,14 @@ function formatCategory(cat) {
     return map[cat] || cat;
 }
 
+function formatClassification(classification) {
+    return classification
+        .replace(/_/g, " ")
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+}
+
 function formatRemaining(ms) {
     if (ms == null) return "";
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -82,8 +90,17 @@ function GameScreen({ game, onExit, onEditConfig }) {
     const [lastItem, setLastItem] = useState(null);
     const [currentTruthOrDare, setCurrentTruthOrDare] = useState(null); // "truth" | "dare" | null
     const [isCardModeActive, setIsCardModeActive] = useState(false);
+    const [currentPosition, setCurrentPosition] = useState(null); // imagen de posición actual
+    const [galleryPositions, setGalleryPositions] = useState([]); // lista para galería
+    const [galleryIndex, setGalleryIndex] = useState(0);
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [isGalleryFullscreen, setIsGalleryFullscreen] = useState(false);
+
+    const touchStartXRef = useRef(null);
+    const touchEndXRef = useRef(null);
 
     const increaseCategoriesLevel = () => {
+
         // Solo tiene sentido si hay más de una categoría disponible
         if (orderedCategories.length <= 1) return;
         setCurrentCategoryIndex((prev) =>
@@ -175,7 +192,41 @@ function GameScreen({ game, onExit, onEditConfig }) {
         setLastItem(null);
         setCurrentTruthOrDare(null);
         setIsCardModeActive(false);
+        setCurrentPosition(null);
+        setGalleryPositions([]);
+        setIsGalleryOpen(false);
+        setGalleryIndex(0);
+        setIsGalleryFullscreen(false);
         advanceTurnCore();
+    };
+
+    // Construye filtros efectivos de posiciones:
+    // si no se seleccionó nada en alguna clasificación, se considera "todas".
+    const buildEffectivePositionFilters = () => {
+        const base = game.positionFilters || {};
+        const effective = {};
+
+        const allKeys = [
+            "Todas_Las_Posiciones",
+            "tipo_de_posicion_sexual",
+            "Estimulacion",
+            "Penetracion",
+            "Acariciamiento_extra",
+            "Ubicacion",
+            "Actividad",
+            "Complejidad",
+        ];
+
+        allKeys.forEach((key) => {
+            const arr = base[key] || [];
+            if (arr.length > 0) {
+                effective[key] = arr;
+            }
+        });
+
+        // Si no hay ningún filtro marcado en absoluto, devolvemos objeto vacío,
+        // lo que hará que el loader pueda usar todas las imágenes disponibles.
+        return Object.keys(effective).length > 0 ? effective : {};
     };
 
     const handleWheelResult = (segment) => {
@@ -211,6 +262,17 @@ function GameScreen({ game, onExit, onEditConfig }) {
             });
 
             setLastItem(card);
+        } else if (segment.id === "position") {
+            // Obtener una posición al azar según filtros
+            const filters = buildEffectivePositionFilters();
+
+            getRandomPosition(filters).then((pos) => {
+                if (!pos) {
+                    setCurrentPosition(null);
+                    return;
+                }
+                setCurrentPosition(pos);
+            });
         }
 
         // Al terminar el giro, pasamos al siguiente jugador y contamos ronda
@@ -247,16 +309,35 @@ function GameScreen({ game, onExit, onEditConfig }) {
         // Caso ruleta
         if (lastResult) {
             const segId = lastResult.segment.id;
-            if (segId !== "truth" && segId !== "dare") return;
 
-            const typeFromWheel = segId === "truth" ? "truth" : "dare";
+            // Cambiar VERDAD / RETO
+            if (segId === "truth" || segId === "dare") {
+                const typeFromWheel = segId === "truth" ? "truth" : "dare";
 
-            const item = getRandomItem({
-                type: typeFromWheel,
-                categories: categoriesForPick,
-            });
+                const item = getRandomItem({
+                    type: typeFromWheel,
+                    categories: categoriesForPick,
+                });
 
-            setLastItem(item);
+                setLastItem(item);
+                return;
+            }
+
+            // Cambiar POSICIÓN
+            if (segId === "position") {
+                const filters = buildEffectivePositionFilters();
+
+                getRandomPosition(filters).then((pos) => {
+                    if (!pos) {
+                        setCurrentPosition(null);
+                        return;
+                    }
+                    setCurrentPosition(pos);
+                });
+                return;
+            }
+
+            // Otros segmentos (drink, card...) no cambian aquí
             return;
         }
 
@@ -279,6 +360,23 @@ function GameScreen({ game, onExit, onEditConfig }) {
             });
 
             setLastItem(item);
+            return;
+        }
+
+        // Caso modo Posición sin ruleta
+        if (game.mode === "position") {
+            const filters = buildEffectivePositionFilters();
+
+            getRandomPosition(filters).then((pos) => {
+                if (!pos) {
+                    setCurrentPosition(null);
+                    alert(
+                        "No se encontraron imágenes de posiciones con los filtros actuales."
+                    );
+                    return;
+                }
+                setCurrentPosition(pos);
+            });
         }
     };
 
@@ -312,6 +410,94 @@ function GameScreen({ game, onExit, onEditConfig }) {
         });
 
         setLastItem(item);
+    };
+
+    // Para modo "position" sin ruleta: obtener una nueva posición
+    const handleShowPosition = () => {
+        const filters = buildEffectivePositionFilters();
+
+        getRandomPosition(filters).then((pos) => {
+            if (!pos) {
+                setCurrentPosition(null);
+                alert(
+                    "No se encontraron imágenes de posiciones con los filtros actuales."
+                );
+                return;
+            }
+            setCurrentPosition(pos);
+            setIsGalleryOpen(false);
+        });
+    };
+
+    const handleOpenGallery = () => {
+        const filters = buildEffectivePositionFilters();
+
+        import("../utils/positionLogic").then(({ getAllPositionsWithFilters }) => {
+            getAllPositionsWithFilters(filters).then((list) => {
+                if (!list || list.length === 0) {
+                    alert(
+                        "No se encontraron imágenes de posiciones con los filtros actuales."
+                    );
+                    setGalleryPositions([]);
+                    setIsGalleryOpen(false);
+                    return;
+                }
+                setGalleryPositions(list);
+                setGalleryIndex(0);
+                setIsGalleryOpen(true);
+                setIsGalleryFullscreen(false);
+            });
+        });
+    };
+
+    const handleGalleryPrev = () => {
+        if (!galleryPositions.length) return;
+        setGalleryIndex((prev) =>
+            prev === 0 ? galleryPositions.length - 1 : prev - 1
+        );
+    };
+
+    const handleGalleryNext = () => {
+        if (!galleryPositions.length) return;
+        setGalleryIndex((prev) =>
+            prev === galleryPositions.length - 1 ? 0 : prev + 1
+        );
+    };
+
+    const handleGallerySelectIndex = (index) => {
+        if (!galleryPositions.length) return;
+        if (index < 0 || index >= galleryPositions.length) return;
+        setGalleryIndex(index);
+    };
+
+    const handleGalleryTouchStart = (e) => {
+        if (!e.touches || e.touches.length === 0) return;
+        touchStartXRef.current = e.touches[0].clientX;
+        touchEndXRef.current = null;
+    };
+
+    const handleGalleryTouchMove = (e) => {
+        if (!e.touches || e.touches.length === 0) return;
+        touchEndXRef.current = e.touches[0].clientX;
+    };
+
+    const handleGalleryTouchEnd = () => {
+        if (touchStartXRef.current == null || touchEndXRef.current == null) return;
+        const deltaX = touchEndXRef.current - touchStartXRef.current;
+        const threshold = 40; // píxeles mínimos para considerar swipe
+
+        if (Math.abs(deltaX) < threshold) return;
+
+        if (deltaX < 0) {
+            // swipe izquierda -> siguiente
+            handleGalleryNext();
+        } else {
+            // swipe derecha -> anterior
+            handleGalleryPrev();
+        }
+
+        touchStartXRef.current = null;
+        touchEndXRef.current = null;
     };
 
     const handleFinishGame = () => {
@@ -395,42 +581,46 @@ function GameScreen({ game, onExit, onEditConfig }) {
                             )}
                         </div>
 
-                        <div className="game__categories">
-                            <p className="game__label">Categorías activas</p>
-                            <div className="game__chips">
-                                {game.activeCategories.map((cat) => (
-                                    <span key={cat} className="game__chip game__chip--ghost">
-                                        {formatCategory(cat)}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="game__control">
-                        {orderedCategories.length > 1 && currentCategory && (
-                            <div className="game__chips" style={{ flexWrap: "wrap", gap: "0.4rem" }}>
-                                <span className="game__chip game__chip--ghost">
-                                    Categoría actual: {formatCategory(currentCategory)}
-                                </span>
-
-                                <button
-                                    type="button"
-                                    className="game__btn-secondary"
-                                    onClick={decreaseCategoriesLevel}
-                                >
-                                    Categoría anterior
-                                </button>
-                                <button
-                                    type="button"
-                                    className="game__btn-secondary"
-                                    onClick={increaseCategoriesLevel}
-                                >
-                                    Siguiente categoría
-                                </button>
+                        {game.mode !== "position" && (
+                            <div className="game__categories">
+                                <p className="game__label">Categorías activas</p>
+                                <div className="game__chips">
+                                    {game.activeCategories.map((cat) => (
+                                        <span key={cat} className="game__chip game__chip--ghost">
+                                            {formatCategory(cat)}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </section>
+
+                    {game.mode !== "position" && (
+                        <section className="game__control">
+                            {orderedCategories.length > 1 && currentCategory && (
+                                <div className="game__chips" style={{ flexWrap: "wrap", gap: "0.4rem" }}>
+                                    <span className="game__chip game__chip--ghost">
+                                        Categoría actual: {formatCategory(currentCategory)}
+                                    </span>
+
+                                    <button
+                                        type="button"
+                                        className="game__btn-secondary"
+                                        onClick={decreaseCategoriesLevel}
+                                    >
+                                        Categoría anterior
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="game__btn-secondary"
+                                        onClick={increaseCategoriesLevel}
+                                    >
+                                        Siguiente categoría
+                                    </button>
+                                </div>
+                            )}
+                        </section>
+                    )}
 
                     <section className="game__body">
                         {isWheelMode ? (
@@ -464,11 +654,41 @@ function GameScreen({ game, onExit, onEditConfig }) {
 
 
                                                 {lastResult.segment.id === "position" && (
-                                                    currentCategory === "picante"
-                                                        ? `Elijan una posición sexual. Pueden practicar con ropa o sin penetración.`
-                                                        : currentCategory === "extremo" || currentCategory === "locuras"
-                                                            ? `Elijan una posición sexual sin ropa y con penetración.`
-                                                            : `Elijan una posición sexual juntos.`
+                                                    <>
+                                                        {currentCategory === "picante"
+                                                            ? `Realicen esta posición sexual con ropa o sin penetración.`
+                                                            : currentCategory === "extremo" || currentCategory === "locuras"
+                                                                ? `Realicen esta posición sexual sin ropa y con penetración.`
+                                                                : `Realicen esta posición sexual juntos.`}
+
+                                                        {currentPosition && (
+                                                            <>
+                                                                <span>
+                                                                    {" "}
+                                                                    (clasificación:{" "}
+                                                                    {formatClassification(
+                                                                        currentPosition.classification
+                                                                    )}{" "}
+                                                                    /{" "}
+                                                                    {formatClassification(
+                                                                        currentPosition.subcategory
+                                                                    )}
+                                                                    )
+                                                                </span>
+                                                                <div
+                                                                    className="game__position-image"
+                                                                    onTouchStart={handleGalleryTouchStart}
+                                                                    onTouchMove={handleGalleryTouchMove}
+                                                                    onTouchEnd={handleGalleryTouchEnd}
+                                                                >
+                                                                    <img
+                                                                        src={currentPosition.url}
+                                                                        alt={`${currentPosition.classification} - ${currentPosition.subcategory}`}
+                                                                    />
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </>
                                                 )}
                                             </p>
                                         </>
@@ -542,22 +762,158 @@ function GameScreen({ game, onExit, onEditConfig }) {
                                     )}
                                 </div>
                             </div>
+                        ) : game.mode === "position" ? (
+                            <div className="game__vrd">
+                                <div className="game__vrd-buttons">
+                                    <button
+                                        type="button"
+                                        className="game__btn-secondary"
+                                        onClick={handleShowPosition}
+                                    >
+                                        Mostrar posición
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="game__btn-secondary"
+                                        onClick={handleOpenGallery}
+                                    >
+                                        Ver galería
+                                    </button>
+                                </div>
+
+                                <div className="game__result">
+                                    {isGalleryOpen && galleryPositions.length > 0 ? (
+                                        <div
+                                            className={
+                                                isGalleryFullscreen
+                                                    ? "game__gallery-fullscreen"
+                                                    : ""
+                                            }
+                                        >
+                                            <p className="game__label">Galería de posiciones</p>
+                                            <p className="game__result-text">
+                                                Imagen {galleryIndex + 1} de {galleryPositions.length}
+                                                <br />
+                                                (clasificación:{" "}
+                                                {formatClassification(
+                                                    galleryPositions[galleryIndex].classification
+                                                )}{" "}
+                                                /{" "}
+                                                {formatClassification(
+                                                    galleryPositions[galleryIndex].subcategory
+                                                )}
+                                                )
+                                            </p>
+                                            <div className="game__position-image">
+                                                <img
+                                                    src={galleryPositions[galleryIndex].url}
+                                                    alt={`${galleryPositions[galleryIndex].classification} - ${galleryPositions[galleryIndex].subcategory}`}
+                                                />
+                                            </div>
+
+                                            {/* Miniaturas tipo mosaico */}
+                                            <div className="game__gallery-thumbs">
+                                                {galleryPositions.map((pos, idx) => (
+                                                    <button
+                                                        key={`${pos.classification}-${pos.subcategory}-${pos.filename}-${idx}`}
+                                                        type="button"
+                                                        className={`game__gallery-thumb ${idx === galleryIndex
+                                                            ? "game__gallery-thumb--active"
+                                                            : ""
+                                                            }`}
+                                                        onClick={() =>
+                                                            handleGallerySelectIndex(idx)
+                                                        }
+                                                    >
+                                                        <img
+                                                            src={pos.url}
+                                                            alt={`${pos.classification} - ${pos.subcategory}`}
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="game__vrd-buttons" style={{ marginTop: "0.6rem" }}>
+                                                <button
+                                                    type="button"
+                                                    className="game__btn-secondary"
+                                                    onClick={handleGalleryPrev}
+                                                >
+                                                    Anterior
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="game__btn-secondary"
+                                                    onClick={handleGalleryNext}
+                                                >
+                                                    Siguiente
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="game__btn-secondary"
+                                                    onClick={() =>
+                                                        setIsGalleryFullscreen((prev) => !prev)
+                                                    }
+                                                >
+                                                    {isGalleryFullscreen
+                                                        ? "Salir pantalla completa"
+                                                        : "Pantalla completa"}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="game__btn-secondary"
+                                                    onClick={() => {
+                                                        setIsGalleryOpen(false);
+                                                        setIsGalleryFullscreen(false);
+                                                    }}
+                                                >
+                                                    Cerrar galería
+                                                </button>
+                                            </div>
+
+                                        </div>
+                                    ) : currentPosition ? (
+                                        <>
+                                            <p className="game__label">Posición seleccionada</p>
+                                            <p className="game__result-text">
+                                                Realicen esta posición sexual sin ropa y con penetración.
+                                                <br />
+                                                (clasificación:{" "}
+                                                {formatClassification(currentPosition.classification)} /{" "}
+                                                {formatClassification(currentPosition.subcategory)})
+                                            </p>
+                                            <div className="game__position-image">
+                                                <img
+                                                    src={currentPosition.url}
+                                                    alt={`${currentPosition.classification} - ${currentPosition.subcategory}`}
+                                                />
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="game__label">
+                                            Pulsa "Mostrar posición" o "Ver galería" para usar las
+                                            imágenes según los filtros configurados.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
                         ) : (
                             <section className="game__placeholder">
-                                <p>
-                                    Este modo aún no está implementado.
-                                </p>
+                                <p>Este modo aún no está implementado.</p>
                             </section>
                         )}
                     </section>
                 </main>
 
                 <footer className="game__footer">
-                    {((lastResult &&
-                        (lastResult.segment.id === "truth" ||
-                            lastResult.segment.id === "dare")) ||
+                    {(
+                        (lastResult &&
+                            (lastResult.segment.id === "truth" ||
+                                lastResult.segment.id === "dare" ||
+                                lastResult.segment.id === "position")) ||
                         currentTruthOrDare ||
-                        isCardModeActive) && (
+                        isCardModeActive
+                    ) && (
                             <button
                                 className="game__btn-secondary"
                                 type="button"
