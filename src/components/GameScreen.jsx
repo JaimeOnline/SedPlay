@@ -410,6 +410,9 @@ function GameScreen({ game, onExit, onEditConfig }) {
         });
 
         setLastItem(item);
+
+        // después de robar carta, pasar al siguiente jugador
+        advanceTurnCore();
     };
 
     // Para modo "position" sin ruleta: obtener una nueva posición
