@@ -279,6 +279,17 @@ body {
     cursor: pointer;
     user-select: none;
     background: rgba(7, 6, 18, 0.7);
+    transition:
+        transform 0.16s ease-out,
+        box-shadow 0.16s ease-out,
+        background 0.16s ease-out,
+        border-color 0.16s ease-out,
+        color 0.16s ease-out;
+}
+
+.pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .pill input {
@@ -289,6 +300,8 @@ body {
     border-color: var(--accent);
     color: #130f20;
     background: linear-gradient(135deg, #f5c15f, #e664ff);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+    transform: translateY(-1px) scale(1.02);
 }
 
 .setup__submit {
@@ -303,6 +316,20 @@ body {
     font-size: 0.95rem;
     cursor: pointer;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    transition:
+        transform 0.12s ease-out,
+        box-shadow 0.12s ease-out,
+        background 0.12s ease-out;
+}
+
+.setup__submit:hover:not([disabled]) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+}
+
+.setup__submit:active:not([disabled]) {
+    transform: translateY(0);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
 }
 
 .game {
@@ -432,6 +459,20 @@ body {
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
+    transition:
+        transform 0.12s ease-out,
+        box-shadow 0.12s ease-out,
+        background 0.12s ease-out;
+}
+
+.game__btn-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.6);
+}
+
+.game__btn-secondary:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .wheel {
@@ -1024,4 +1065,85 @@ body {
 
 .game__gallery-fullscreen .game__vrd-buttons {
     margin-top: 0.5rem;
+}
+
+.setup__steps-indicator {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+.setup__step {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+.setup__step--active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* estado de envío en el botón principal de GameSetup */
+.setup__submit[disabled] {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* mini-spinner a la izquierda del texto "Iniciando..." */
+.setup__submit[disabled]::before {
+    content: "";
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-right: 0.4em;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: transparent;
+    animation: setup-spinner 0.7s linear infinite;
+    vertical-align: -0.1em;
+}
+
+@keyframes setup-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.setup__error {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--danger);
+}
+
+/* Skeleton genérico reutilizable */
+.skeleton-box {
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-box::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(255, 255, 255, 0.15),
+            rgba(255, 255, 255, 0.04));
+    transform: translateX(-100%);
+    animation: skeleton-shimmer 1.2s infinite;
+}
+
+@keyframes skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
 }

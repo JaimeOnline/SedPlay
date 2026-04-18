@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import Wheel from "./Wheel";
+import { motion } from "framer-motion";
 import { getRandomItem } from "../utils/gameLogic";
 import AdBanner from "./AdBanner";
 import { getRandomPosition } from "../utils/positionLogic";
+import SkeletonBox from "./SkeletonBox";
 
 function formatMode(mode) {
     switch (mode) {
@@ -95,6 +97,8 @@ function GameScreen({ game, onExit, onEditConfig }) {
     const [galleryIndex, setGalleryIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isGalleryFullscreen, setIsGalleryFullscreen] = useState(false);
+    const [isLoadingPosition, setIsLoadingPosition] = useState(false);
+    const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
     const touchStartXRef = useRef(null);
     const touchEndXRef = useRef(null);
@@ -265,14 +269,19 @@ function GameScreen({ game, onExit, onEditConfig }) {
         } else if (segment.id === "position") {
             // Obtener una posición al azar según filtros
             const filters = buildEffectivePositionFilters();
+            setIsLoadingPosition(true);
 
-            getRandomPosition(filters).then((pos) => {
-                if (!pos) {
-                    setCurrentPosition(null);
-                    return;
-                }
-                setCurrentPosition(pos);
-            });
+            getRandomPosition(filters)
+                .then((pos) => {
+                    if (!pos) {
+                        setCurrentPosition(null);
+                        return;
+                    }
+                    setCurrentPosition(pos);
+                })
+                .finally(() => {
+                    setIsLoadingPosition(false);
+                });
         }
 
         // Al terminar el giro, pasamos al siguiente jugador y contamos ronda
@@ -326,14 +335,19 @@ function GameScreen({ game, onExit, onEditConfig }) {
             // Cambiar POSICIÓN
             if (segId === "position") {
                 const filters = buildEffectivePositionFilters();
+                setIsLoadingPosition(true);
 
-                getRandomPosition(filters).then((pos) => {
-                    if (!pos) {
-                        setCurrentPosition(null);
-                        return;
-                    }
-                    setCurrentPosition(pos);
-                });
+                getRandomPosition(filters)
+                    .then((pos) => {
+                        if (!pos) {
+                            setCurrentPosition(null);
+                            return;
+                        }
+                        setCurrentPosition(pos);
+                    })
+                    .finally(() => {
+                        setIsLoadingPosition(false);
+                    });
                 return;
             }
 
@@ -366,17 +380,22 @@ function GameScreen({ game, onExit, onEditConfig }) {
         // Caso modo Posición sin ruleta
         if (game.mode === "position") {
             const filters = buildEffectivePositionFilters();
+            setIsLoadingPosition(true);
 
-            getRandomPosition(filters).then((pos) => {
-                if (!pos) {
-                    setCurrentPosition(null);
-                    alert(
-                        "No se encontraron imágenes de posiciones con los filtros actuales."
-                    );
-                    return;
-                }
-                setCurrentPosition(pos);
-            });
+            getRandomPosition(filters)
+                .then((pos) => {
+                    if (!pos) {
+                        setCurrentPosition(null);
+                        alert(
+                            "No se encontraron imágenes de posiciones con los filtros actuales."
+                        );
+                        return;
+                    }
+                    setCurrentPosition(pos);
+                })
+                .finally(() => {
+                    setIsLoadingPosition(false);
+                });
         }
     };
 
@@ -418,25 +437,34 @@ function GameScreen({ game, onExit, onEditConfig }) {
     // Para modo "position" sin ruleta: obtener una nueva posición
     const handleShowPosition = () => {
         const filters = buildEffectivePositionFilters();
+        setIsLoadingPosition(true);
 
-        getRandomPosition(filters).then((pos) => {
-            if (!pos) {
-                setCurrentPosition(null);
-                alert(
-                    "No se encontraron imágenes de posiciones con los filtros actuales."
-                );
-                return;
-            }
-            setCurrentPosition(pos);
-            setIsGalleryOpen(false);
-        });
+        getRandomPosition(filters)
+            .then((pos) => {
+                if (!pos) {
+                    setCurrentPosition(null);
+                    alert(
+                        "No se encontraron imágenes de posiciones con los filtros actuales."
+                    );
+                    return;
+                }
+                setCurrentPosition(pos);
+                setIsGalleryOpen(false);
+            })
+            .finally(() => {
+                setIsLoadingPosition(false);
+            });
     };
 
     const handleOpenGallery = () => {
         const filters = buildEffectivePositionFilters();
+        setIsLoadingGallery(true);
 
-        import("../utils/positionLogic").then(({ getAllPositionsWithFilters }) => {
-            getAllPositionsWithFilters(filters).then((list) => {
+        import("../utils/positionLogic")
+            .then(({ getAllPositionsWithFilters }) => {
+                return getAllPositionsWithFilters(filters);
+            })
+            .then((list) => {
                 if (!list || list.length === 0) {
                     alert(
                         "No se encontraron imágenes de posiciones con los filtros actuales."
@@ -449,8 +477,10 @@ function GameScreen({ game, onExit, onEditConfig }) {
                 setGalleryIndex(0);
                 setIsGalleryOpen(true);
                 setIsGalleryFullscreen(false);
+            })
+            .finally(() => {
+                setIsLoadingGallery(false);
             });
-        });
     };
 
     const handleGalleryPrev = () => {
@@ -551,7 +581,13 @@ function GameScreen({ game, onExit, onEditConfig }) {
 
     return (
         <>
-            <div className="game">
+            <motion.div
+                className="game"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.25 }}
+            >
                 <header className="game__header">
                     <button
                         className="game__back"
@@ -664,7 +700,17 @@ function GameScreen({ game, onExit, onEditConfig }) {
                                                                 ? `Realicen esta posición sexual sin ropa y con penetración.`
                                                                 : `Realicen esta posición sexual juntos.`}
 
-                                                        {currentPosition && (
+                                                        {isLoadingPosition && (
+                                                            <div className="game__position-image">
+                                                                <SkeletonBox
+                                                                    width="100%"
+                                                                    height="260px"
+                                                                    radius="12px"
+                                                                />
+                                                            </div>
+                                                        )}
+
+                                                        {!isLoadingPosition && currentPosition && (
                                                             <>
                                                                 <span>
                                                                     {" "}
@@ -808,10 +854,18 @@ function GameScreen({ game, onExit, onEditConfig }) {
                                                 )
                                             </p>
                                             <div className="game__position-image">
-                                                <img
-                                                    src={galleryPositions[galleryIndex].url}
-                                                    alt={`${galleryPositions[galleryIndex].classification} - ${galleryPositions[galleryIndex].subcategory}`}
-                                                />
+                                                {isLoadingGallery ? (
+                                                    <SkeletonBox
+                                                        width="100%"
+                                                        height="260px"
+                                                        radius="12px"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={galleryPositions[galleryIndex].url}
+                                                        alt={`${galleryPositions[galleryIndex].classification} - ${galleryPositions[galleryIndex].subcategory}`}
+                                                    />
+                                                )}
                                             </div>
 
                                             {/* Miniaturas tipo mosaico */}
@@ -886,10 +940,18 @@ function GameScreen({ game, onExit, onEditConfig }) {
                                                 {formatClassification(currentPosition.subcategory)})
                                             </p>
                                             <div className="game__position-image">
-                                                <img
-                                                    src={currentPosition.url}
-                                                    alt={`${currentPosition.classification} - ${currentPosition.subcategory}`}
-                                                />
+                                                {isLoadingPosition ? (
+                                                    <SkeletonBox
+                                                        width="100%"
+                                                        height="260px"
+                                                        radius="12px"
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={currentPosition.url}
+                                                        alt={`${currentPosition.classification} - ${currentPosition.subcategory}`}
+                                                    />
+                                                )}
                                             </div>
                                         </>
                                     ) : (
@@ -935,7 +997,7 @@ function GameScreen({ game, onExit, onEditConfig }) {
                     </button>
 
                 </footer>
-            </div>
+            </motion.div>
 
             {/* Espacio para anuncio durante la partida */}
             {/* <AdBanner position="bottom" /> */} {/* Habilitar esta linea */}
